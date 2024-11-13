@@ -1,0 +1,19 @@
+name: Deploy to beta
+on:
+  push:
+    branches:
+      - main
+jobs:
+  trigger-circleci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: timeedit/tesafe-action@v1.2.1
+        with:
+          export_mode: env
+          safe_token: ${{ secrets.SAFE_TOKEN }}
+          safe_context: circleci_assisted_engine
+          variables: |
+            CCI_TOKEN: /circle_ci_api_token,
+      - name: Beta deployment
+        id: deploy-beta # This is used as GHA_Action when triggering the CircleCI pipeline
+        uses: CircleCI-Public/trigger-circleci-pipeline-action@v1.0.7

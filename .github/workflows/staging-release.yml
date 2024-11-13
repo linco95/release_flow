@@ -1,0 +1,31 @@
+name: Deploy to staging
+on:
+  release:
+    tags:
+      - v*
+    types: [prereleased]
+jobs:
+  trigger-circleci:
+    name: Trigger staging deployment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: timeedit/tesafe-action@v1.2.1
+        with:
+          export_mode: env
+          safe_token: ${{ secrets.SAFE_TOKEN }}
+          safe_context: circleci_assisted_engine
+          variables: |
+            CCI_TOKEN: /circle_ci_api_token,
+
+      - name: Staging deployment
+        id: deploy-staging # This is used as GHA_Action when triggering the CircleCI pipeline
+        uses: CircleCI-Public/trigger-circleci-pipeline-action@v1.0.7
+
+      - name: Log deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: timeedit/te-assisted-engine
+        run: |
+          export ORIGINAL_NOTES="$(gh release view ${{ github.event.release.tag_name }} --json body -q .body -R $REPO)"
+          export NEW_NOTES="$ORIGINAL_NOTES $(printf '\n Started deploying to **STAGING** at %s UTC' "$(date +'%d/%m/%Y %H:%M:%S')")"
+          gh release edit ${{github.event.release.tag_name}} -n "$NEW_NOTES" -R $REPO
