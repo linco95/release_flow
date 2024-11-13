@@ -1,18 +1,62 @@
 
 version: 2.1
+##### PARAMETERS #####
+parameters:
+  GHA_Event:
+    type: string
+    description: The Github event that triggered the workflow.
+    default: ""
+  GHA_Actor:
+    type: string
+    description: The user that triggered the workflow
+    default: ""
+  GHA_Action:
+    type: enum
+    enum: [ "", "pre-merge", "deploy-beta", "deploy-staging", "deploy-production" ]
+    description: The id of the action that triggered the workflow.
+    default: ""
+  GHA_Meta:
+    type: string
+    description: Optional additional meta data for the workflow. Set using Github action Inputs
+    default: ""
+
+workflows:
+  run-tests-workflow:
+    when:
+      equal: [ pre-merge, << pipeline.parameters.GHA_Action >> ]
+    jobs:
+      - run-tests
+  say-hello-workflow-beta: 
+    when:
+      equal: [ deploy-beta, << pipeline.parameters.GHA_Action >> ]
+    jobs:
+      - say-hello
+  say-hello-workflow-staging: 
+    when:
+      equal: [ deploy-staging, << pipeline.parameters.GHA_Action >> ]
+    jobs:
+      - say-hello
+  say-hello-workflow-production: 
+    when:
+      equal: [ deploy-production, << pipeline.parameters.GHA_Action >> ]
+    jobs:
+      - say-hello
 
 jobs:
+  run-tests:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - run:
+          name: "Run pre mrege tests"
+          command: "echo Running tests"
   say-hello:
     docker:
       - image: cimg/base:current
-
     steps:
       - checkout
       - run:
           name: "Say hello"
-          command: "echo Hello, World!"
+          command: "echo Hello, World! << pipeline.parameters.GHA_Action >>"
 
-workflows:
-  say-hello-workflow: 
-    jobs:
-      - say-hello

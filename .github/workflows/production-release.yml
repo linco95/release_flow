@@ -1,0 +1,56 @@
+name: Deploy to production
+on:
+  release:
+    types: [released, edited]
+jobs:
+  deploy-on-latest:
+    name: Trigger production deployment
+    if: (github.event.action == 'edited' && github.event.changes.make_latest.to) || github.event.action == 'released'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: octokit/graphql-action@v2.x
+        id: get_latest_release
+        with:
+          query: |
+            query release($owner:String!,$repo:String!,$tag:String!) {
+              repository(owner:$owner,name:$repo) {
+                release(tagName:$tag) {
+                  isLatest
+                }
+              }
+            }
+          owner: ${{ github.event.repository.owner.login }}
+          repo: ${{ github.event.repository.name }}
+          tag: ${{ github.event.release.tag_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Export isLatest as env var
+        run: echo "IS_LATEST_RELEASE=${{ fromJSON(steps.get_latest_release.outputs.data).repository.release.isLatest }}" >> $GITHUB_ENV
+
+      - name: Get CircleCI API token
+        uses: timeedit/tesafe-action@v1.2.1
+        with:
+          export_mode: env
+          safe_token: ${{ secrets.SAFE_TOKEN }}
+          safe_context: circleci_assisted_engine
+          variables: |
+            CCI_TOKEN: /circle_ci_api_token
+
+      - name: Production deployment
+        if: env.IS_LATEST_RELEASE == 'true'
+        id: deploy-production
+        uses: CircleCI-Public/trigger-circleci-pipeline-action@v1.0.7
+      - name: Log deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: timeedit/release_workflow
+        run: |
+          export ORIGINAL_NOTES="$(gh release view ${{ github.event.release.tag_name }} --json body -q .body -R $REPO)"
+          export NEW_NOTES="$ORIGINAL_NOTES $(printf '\n Started deploying to **PRODUCTION** at %s UTC' "$(date +'%d/%m/%Y %H:%M:%S')")"
+          gh release edit ${{github.event.release.tag_name}} -n "$NEW_NOTES" -R $REPO
+
+      - if: env.IS_LATEST_RELEASE == 'false'
+        run: |
+          echo "::notice file=release_flow.yml,title=Not latest::This is not the latest release, i.e. we should not deploy it."
+          exit 1
