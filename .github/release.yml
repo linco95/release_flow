@@ -1,0 +1,20 @@
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+  categories:
+    - title: Breaking Changes 🛠 (Major)
+      labels:
+        - major
+    - title: Exciting New Features 🎉 (Minor)
+      labels:
+        - minor
+    - title: Fixes 📝 (Patch)
+      labels:
+        - patch
+    - title: Bug Fixes 🐛
+      labels:
+        - bug
+    - title: Other Changes
+      labels:
+        - "*"
